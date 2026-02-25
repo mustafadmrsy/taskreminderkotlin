@@ -51,6 +51,22 @@ Modern, sade ama "case" seviyesinde tasarlanmış bir **görev / hatırlatıcı*
 - Android SDK
 - Cihaz veya emulator
 
+### Android SDK yolu (local.properties)
+
+Bazı durumlarda Gradle şu hatayı verebilir:
+
+`SDK location not found. Define a valid SDK location ...`
+
+Bu durumda proje kök dizininde `local.properties` dosyası oluşturup Android SDK yolunu tanımlayın.
+
+> Not: `local.properties` kullanıcı/makineye özel olduğu için genelde `.gitignore` içindedir ve repo'ya eklenmez.
+
+Örnek (Windows):
+
+```properties
+sdk.dir=C\:\\Users\\<kullanici_adi>\\AppData\\Local\\Android\\Sdk
+```
+
 ### Çalıştırma (Android Studio)
 
 - Üst bardan **Run configuration: `app`** seç
