@@ -141,10 +141,6 @@ Takvim sadece uygulamanın kendi içinde yer alan **Calendar** ekranıdır.
 ## Yol Haritası (Opsiyonel)
 
 - Room ile kalıcı görev kaydı
-- Görev düzenleme / silme
+- Görev düzenleme
 - Bildirim tıklayınca görev detayına yönlendirme
 - Daha gelişmiş takvim görünümü (ay/hafta)
-
-## Lisans
-
-Henüz lisans eklenmedi. İstersen MIT ekleyebilirim.
