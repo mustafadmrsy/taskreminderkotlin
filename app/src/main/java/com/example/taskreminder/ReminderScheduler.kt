@@ -19,18 +19,21 @@ object ReminderScheduler {
     const val ChannelId = "task_reminders"
 
     private const val DataKeyTitle = "title"
+    private const val DataKeyFocusDurationMillis = "focus_duration_millis"
 
     fun scheduleReminder(
         context: Context,
         taskId: String,
         title: String,
         delayMillis: Long,
+        focusDurationMillis: Long,
     ) {
         ensureChannel(context)
 
         val safeDelay = delayMillis.coerceAtLeast(0L)
         val data = Data.Builder()
             .putString(DataKeyTitle, title)
+            .putLong(DataKeyFocusDurationMillis, focusDurationMillis)
             .build()
 
         val request = OneTimeWorkRequestBuilder<ReminderWorker>()

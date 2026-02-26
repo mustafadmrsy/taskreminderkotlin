@@ -5,6 +5,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.work.Worker
 import androidx.work.WorkerParameters
+import kotlinx.coroutines.runBlocking
 
 class ReminderWorker(
     appContext: Context,
@@ -13,6 +14,7 @@ class ReminderWorker(
 
     override fun doWork(): Result {
         val title = inputData.getString("title") ?: return Result.failure()
+        val focusDurationMillis = inputData.getLong("focus_duration_millis", 0L)
 
         ReminderScheduler.ensureChannel(applicationContext)
 
@@ -25,6 +27,12 @@ class ReminderWorker(
             .build()
 
         NotificationManagerCompat.from(applicationContext).notify(title.hashCode(), notification)
+
+        if (focusDurationMillis > 0L) {
+            runBlocking {
+                FocusPreferences.startFocusSession(applicationContext, focusDurationMillis)
+            }
+        }
         return Result.success()
     }
 }

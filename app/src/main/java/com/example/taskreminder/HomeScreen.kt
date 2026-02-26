@@ -46,6 +46,8 @@ fun HomeScreen(
     onTimerMinutesChanged: (String) -> Unit,
     onUseTimerChanged: (Boolean) -> Unit,
     onReminderEnabledChanged: (Boolean) -> Unit,
+    onFocusEnabledChanged: (Boolean) -> Unit,
+    onFocusMinutesChanged: (String) -> Unit,
     onAddTask: () -> Unit,
     onNavigateToList: () -> Unit,
     onNavigateToCalendar: () -> Unit,
@@ -213,6 +215,36 @@ fun HomeScreen(
                     Switch(
                         checked = state.reminderEnabled,
                         onCheckedChange = onReminderEnabledChanged,
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Odak modu", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            text = "Görev süresi boyunca seçtiğin uygulamalar engellenir.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = state.focusEnabled,
+                        onCheckedChange = onFocusEnabledChanged,
+                    )
+                }
+
+                AnimatedVisibility(visible = state.focusEnabled) {
+                    OutlinedTextField(
+                        value = state.focusMinutesInput,
+                        onValueChange = onFocusMinutesChanged,
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Görev süresi (dakika)") },
+                        placeholder = { Text("25") },
+                        singleLine = true,
                     )
                 }
 

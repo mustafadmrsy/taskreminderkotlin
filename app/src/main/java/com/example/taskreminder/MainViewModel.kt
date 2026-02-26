@@ -27,6 +27,8 @@ data class TaskItem(
     val createdAt: LocalDateTime,
     val triggerAt: LocalDateTime,
     val timerMinutes: Long?,
+    val focusMinutes: Long?,
+    val focusEnabled: Boolean,
     val reminderEnabled: Boolean,
     val isDone: Boolean,
 )
@@ -43,6 +45,8 @@ data class HomeState(
     val timerMinutesInput: String = "",
     val useTimer: Boolean = false,
     val reminderEnabled: Boolean = true,
+    val focusEnabled: Boolean = false,
+    val focusMinutesInput: String = "",
     val errorMessage: String? = null,
 )
 
@@ -57,6 +61,11 @@ sealed interface UiEvent {
         val taskId: String,
         val title: String,
         val triggerAt: LocalDateTime,
+        val focusDurationMillis: Long,
+    ) : UiEvent
+
+    data class StartFocusNow(
+        val focusDurationMillis: Long,
     ) : UiEvent
 }
 
@@ -74,6 +83,8 @@ class MainViewModel : ViewModel() {
                     createdAt = LocalDateTime.now(),
                     triggerAt = LocalDateTime.of(LocalDate.now(), LocalTime.of(18, 30)),
                     timerMinutes = null,
+                    focusMinutes = null,
+                    focusEnabled = false,
                     reminderEnabled = true,
                     isDone = false,
                 ),
@@ -83,6 +94,8 @@ class MainViewModel : ViewModel() {
                     createdAt = LocalDateTime.now(),
                     triggerAt = LocalDateTime.of(LocalDate.now().plusDays(1), LocalTime.of(9, 0)),
                     timerMinutes = null,
+                    focusMinutes = null,
+                    focusEnabled = false,
                     reminderEnabled = true,
                     isDone = false,
                 ),
@@ -118,6 +131,14 @@ class MainViewModel : ViewModel() {
         _state.value = _state.value.copy(home = _state.value.home.copy(reminderEnabled = enabled))
     }
 
+    fun setFocusEnabled(enabled: Boolean) {
+        _state.value = _state.value.copy(home = _state.value.home.copy(focusEnabled = enabled))
+    }
+
+    fun onFocusMinutesChanged(value: String) {
+        _state.value = _state.value.copy(home = _state.value.home.copy(focusMinutesInput = value, errorMessage = null))
+    }
+
     fun addTaskFromInputs() {
         val current = _state.value
         val title = current.home.titleInput.trim()
@@ -130,6 +151,21 @@ class MainViewModel : ViewModel() {
 
         val createdAt = LocalDateTime.now()
         val timerMinutes: Long?
+
+        val focusMinutes: Long?
+        val focusDurationMillis: Long
+        if (home.focusEnabled) {
+            val minutes = home.focusMinutesInput.trim().toLongOrNull()
+            if (minutes == null || minutes <= 0) {
+                _state.value = current.copy(home = home.copy(errorMessage = "Odak süresi dakika değeri 0'dan büyük olmalı."))
+                return
+            }
+            focusMinutes = minutes
+            focusDurationMillis = minutes * 60_000L
+        } else {
+            focusMinutes = null
+            focusDurationMillis = 0L
+        }
 
         val triggerAt = if (home.useTimer) {
             val minutes = home.timerMinutesInput.trim().toLongOrNull()
@@ -169,6 +205,8 @@ class MainViewModel : ViewModel() {
             createdAt = createdAt,
             triggerAt = triggerAt,
             timerMinutes = timerMinutes,
+            focusMinutes = focusMinutes,
+            focusEnabled = home.focusEnabled,
             reminderEnabled = home.reminderEnabled,
             isDone = false,
         )
@@ -178,9 +216,22 @@ class MainViewModel : ViewModel() {
             home = HomeState(),
         )
 
-        if (newTask.reminderEnabled) {
+        if (home.focusEnabled && focusDurationMillis > 0L) {
             viewModelScope.launch {
-                _events.emit(UiEvent.ScheduleReminder(newTask.id, newTask.title, newTask.triggerAt))
+                _events.emit(UiEvent.StartFocusNow(focusDurationMillis))
+            }
+        }
+
+        if (newTask.reminderEnabled || newTask.focusEnabled) {
+            viewModelScope.launch {
+                _events.emit(
+                    UiEvent.ScheduleReminder(
+                        taskId = newTask.id,
+                        title = newTask.title,
+                        triggerAt = newTask.triggerAt,
+                        focusDurationMillis = focusDurationMillis,
+                    )
+                )
             }
         }
     }

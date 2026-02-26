@@ -1,3 +1,4 @@
 <resources>
     <string name="app_name">TaskReminder</string>
+    <string name="focus_accessibility_service_description">Odak modu sırasında seçilen uygulamalara erişimi engeller.</string>
 </resources>

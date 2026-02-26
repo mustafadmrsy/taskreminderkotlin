@@ -15,6 +15,7 @@ object AlarmScheduler {
         taskId: String,
         title: String,
         triggerAtEpochMillis: Long,
+        focusDurationMillis: Long,
     ): Boolean {
         val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
@@ -27,7 +28,7 @@ object AlarmScheduler {
         val pendingIntent = PendingIntent.getBroadcast(
             context,
             taskId.hashCode(),
-            ReminderReceiver.newIntent(context, taskId, title),
+            ReminderReceiver.newIntent(context, taskId, title, focusDurationMillis),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
 
@@ -49,7 +50,7 @@ object AlarmScheduler {
         val pendingIntent = PendingIntent.getBroadcast(
             context,
             taskId.hashCode(),
-            ReminderReceiver.newIntent(context, taskId, ""),
+            ReminderReceiver.newIntent(context, taskId, "", 0L),
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         alarmManager.cancel(pendingIntent)

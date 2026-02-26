@@ -34,6 +34,16 @@ Modern, sade ama "case" seviyesinde tasarlanmış bir **görev / hatırlatıcı*
   - Tema: System / Light / Dark
   - Dynamic Color (Android 12+)
 
+### Focus Mode (Odak Modu) + Uygulama Engelleme
+
+Bu projede **Focus Mode**, kullanıcı odak oturumu başlattığında seçtiği uygulamaları (Instagram, TikTok, YouTube vb.) açmaya çalışırsa ekrana **engel (overlay) ekranı** getirir.
+
+- Engelleme mekanizması **Accessibility Service** ile ön plandaki uygulamayı algılar.
+- Hangi uygulamaların engelleneceği **Yasaklı Uygulamalar** ekranından seçilir.
+- Engel ekranı `BlockScreenActivity` ile gösterilir (motivasyonel UI + kalan süre).
+
+> Not: Android güvenliği gereği Accessibility iznini uygulama içinden otomatik verdirme mümkün değildir. Kullanıcı, ayarlar ekranında ilgili servisi manuel olarak açmalıdır.
+
 ## Teknolojiler
 
 - Kotlin
@@ -99,6 +109,18 @@ Planlı hatırlatmaların **tam saatinde** gelmesi için Android 12+ cihazlarda 
 
 > Not: Exact alarm kapalıysa uygulama WorkManager ile fallback yapar; bu yöntem tam dakikasına garanti vermez.
 
+### Accessibility (Odak Engeli İçin Gerekli)
+
+Odak modunda uygulama engellemenin çalışması için:
+
+- Ayarlar > Erişilebilirlik (Accessibility)
+- Uygulamalar/Servisler bölümünde **TaskReminder** servisini aç
+
+Uygulama içinden:
+
+- `Settings > Yasaklı Uygulamalar` ekranındaki **Accessibility** butonu mümkünse direkt servis detay sayfasını açar, olmazsa genel accessibility ayarına düşer.
+- Aynı ekrandaki **Uygulama ayarları** butonu cihazın `Uygulama bilgisi (App Info)` sayfasını açar (pil, bildirim vb. izinler için).
+
 ### Takvim
 
 Takvim sadece uygulamanın kendi içinde yer alan **Calendar** ekranıdır.
@@ -127,6 +149,18 @@ Takvim sadece uygulamanın kendi içinde yer alan **Calendar** ekranıdır.
   - `ReminderReceiver.kt` (alarm tetikleyince notification)
   - `ReminderScheduler.kt` + `ReminderWorker.kt` (WorkManager fallback)
 
+- Focus Mode
+  - `FocusAccessibilityService.kt`
+    - Ön plandaki uygulamayı algılar
+    - Odak aktif + uygulama yasaklı ise `BlockScreenActivity` açar
+  - `FocusPreferences.kt`
+    - DataStore ile `blocked_packages`, `focus_enabled`, `focus_end_epoch_millis` yönetimi
+  - `BlockedAppsScreen.kt`
+    - Yasaklı uygulama seçimi
+    - Tanılama / test butonları
+  - `BlockScreenActivity.kt`
+    - Engel ekranı UI
+
 ## Test Senaryoları
 
 - **Sayaç testi**
@@ -137,6 +171,33 @@ Takvim sadece uygulamanın kendi içinde yer alan **Calendar** ekranıdır.
 - **Tarih/saat testi**
   - 2-3 dakika sonrasına saat ayarla
   - Exact alarm izninin açık olduğundan emin ol
+
+- **Focus Mode / Engelleme testi**
+  - Settings > Yasaklı Uygulamalar ekranından Instagram/TikTok/YouTube seç
+  - Aynı ekranda **Odak başlat (5dk)** ile odak oturumunu başlat
+  - Durum satırında `Odak=Aktif` gör
+  - Yasaklı uygulamayı açmayı dene, engel ekranı bekle
+
+### Sorun Giderme (En Sık)
+
+- **Engelleme hiç çalışmıyor**
+  - `Yasaklı Uygulamalar` ekranında `Accessibility=Açık` olmalı
+  - Aynı ekranda `Odak=Aktif` olmalı
+  - `Odak ham değerleri: enabled=true end=... kalan=...s` gibi değer görmelisin
+
+- **Yasaklı uygulamalar listede görünmüyor**
+  - Android 11+ için paket görünürlüğü (package visibility) gereksinimi vardır.
+  - Bu projede `AndroidManifest.xml` içinde launcher uygulamalar için `<queries>` tanımlıdır.
+
+- **VSCode kullanıyorum, Android Studio Logcat yok**
+  - ADB ile log alabilirsin:
+
+```powershell
+adb devices
+adb logcat -s FocusAccessibility
+```
+
+> Not: `adb` komutunun çalışması için Android SDK platform-tools PATH'te olmalı.
 
 ## Yol Haritası (Opsiyonel)
 

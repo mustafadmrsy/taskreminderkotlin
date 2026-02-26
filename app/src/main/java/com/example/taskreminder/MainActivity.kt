@@ -1,6 +1,8 @@
 package com.example.taskreminder
 
 import android.Manifest
+import android.content.ActivityNotFoundException
+import android.content.ComponentName
 import android.content.Intent
 import android.os.Bundle
 import android.os.Build
@@ -14,10 +16,16 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
@@ -43,6 +51,40 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+private fun openFocusAccessibilityServiceSettings(context: android.content.Context) {
+    val component = ComponentName(context, FocusAccessibilityService::class.java).flattenToString()
+    val detailsIntent = Intent("android.settings.ACCESSIBILITY_DETAILS_SETTINGS")
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+        .putExtra("android.provider.extra.ACCESSIBILITY_SERVICE", component)
+
+    fun tryStart(intent: Intent): Boolean {
+        return try {
+            val resolved = intent.resolveActivity(context.packageManager) != null
+            if (!resolved) return false
+            context.startActivity(intent)
+            true
+        } catch (_: Throwable) {
+            false
+        }
+    }
+
+    val fallbackIntent = Intent(Settings.ACTION_ACCESSIBILITY_SETTINGS)
+        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+
+    if (tryStart(detailsIntent)) return
+    tryStart(fallbackIntent)
+}
+
+private fun isFocusAccessibilityEnabled(context: android.content.Context): Boolean {
+    val enabledServices = Settings.Secure.getString(
+        context.contentResolver,
+        Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
+    ) ?: return false
+
+    val expected = "${context.packageName}/${FocusAccessibilityService::class.java.name}"
+    return enabledServices.split(':').any { it.equals(expected, ignoreCase = true) }
+}
+
 @Composable
 private fun TaskReminderApp(
     modifier: Modifier = Modifier,
@@ -50,6 +92,8 @@ private fun TaskReminderApp(
 ) {
     val state = viewModel.state.collectAsStateWithLifecycle().value
     val context = LocalContext.current
+
+    var showAccessibilityDialog by remember { mutableStateOf(false) }
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.RequestPermission(),
@@ -67,6 +111,8 @@ private fun TaskReminderApp(
             }
         }
 
+        showAccessibilityDialog = !isFocusAccessibilityEnabled(context)
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             val alarmManager = context.getSystemService(android.content.Context.ALARM_SERVICE) as AlarmManager
             if (!alarmManager.canScheduleExactAlarms()) {
@@ -75,6 +121,34 @@ private fun TaskReminderApp(
                 context.startActivity(intent)
             }
         }
+    }
+
+    if (showAccessibilityDialog) {
+        AlertDialog(
+            onDismissRequest = { showAccessibilityDialog = false },
+            title = { Text("Odak modu için izin gerekli") },
+            text = {
+                Text(
+                    "Yasaklı uygulamaları engelleyebilmek için Accessibility (Erişilebilirlik) iznini açman gerekiyor. " +
+                        "Açmak için aşağıdaki butona bas."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showAccessibilityDialog = false
+                        openFocusAccessibilityServiceSettings(context)
+                    }
+                ) {
+                    Text("Ayarları aç")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showAccessibilityDialog = false }) {
+                    Text("Şimdi değil")
+                }
+            },
+        )
     }
 
     LaunchedEffect(viewModel) {
@@ -90,6 +164,7 @@ private fun TaskReminderApp(
                         taskId = event.taskId,
                         title = event.title,
                         triggerAtEpochMillis = triggerInstant.toEpochMilli(),
+                        focusDurationMillis = event.focusDurationMillis,
                     )
 
                     if (!scheduledWithAlarm) {
@@ -98,6 +173,7 @@ private fun TaskReminderApp(
                             taskId = event.taskId,
                             title = event.title,
                             delayMillis = delayMillis,
+                            focusDurationMillis = event.focusDurationMillis,
                         )
                     }
 
@@ -107,6 +183,11 @@ private fun TaskReminderApp(
                         "Planlandı (Fallback): ${event.title}"
                     }
                     ReminderScheduler.showInstantPreviewNotification(context, debugText)
+                }
+                is UiEvent.StartFocusNow -> {
+                    if (event.focusDurationMillis > 0L) {
+                        FocusPreferences.startFocusSession(context.applicationContext, event.focusDurationMillis)
+                    }
                 }
             }
         }
@@ -137,6 +218,8 @@ private fun TaskReminderApp(
                         onTimerMinutesChanged = viewModel::onTimerMinutesChanged,
                         onUseTimerChanged = viewModel::setUseTimer,
                         onReminderEnabledChanged = viewModel::setReminderEnabled,
+                        onFocusEnabledChanged = viewModel::setFocusEnabled,
+                        onFocusMinutesChanged = viewModel::onFocusMinutesChanged,
                         onAddTask = viewModel::addTaskFromInputs,
                         onNavigateToList = { navController.navigate(AppRoute.List.route) },
                         onNavigateToCalendar = { navController.navigate(AppRoute.Calendar.route) },
@@ -162,6 +245,13 @@ private fun TaskReminderApp(
                         state = state.settings,
                         onThemeModeChanged = viewModel::setThemeMode,
                         onDynamicColorChanged = viewModel::setDynamicColorEnabled,
+                        onNavigateToBlockedApps = { navController.navigate(AppRoute.BlockedApps.route) },
+                        modifier = Modifier.padding(innerPadding),
+                    )
+                }
+                composable(AppRoute.BlockedApps.route) {
+                    BlockedAppsScreen(
+                        onNavigateBack = { navController.popBackStack() },
                         modifier = Modifier.padding(innerPadding),
                     )
                 }
@@ -183,4 +273,5 @@ private sealed class AppRoute(val route: String) {
     data object List : AppRoute("list")
     data object Calendar : AppRoute("calendar")
     data object Settings : AppRoute("settings")
+    data object BlockedApps : AppRoute("blocked_apps")
 }

@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Switch
@@ -20,6 +21,7 @@ fun SettingsScreen(
     state: SettingsState,
     onThemeModeChanged: (ThemeMode) -> Unit,
     onDynamicColorChanged: (Boolean) -> Unit,
+    onNavigateToBlockedApps: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -30,6 +32,13 @@ fun SettingsScreen(
             text = "Ayarlar",
             style = MaterialTheme.typography.headlineSmall,
         )
+
+        FilledTonalButton(
+            onClick = onNavigateToBlockedApps,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Yasaklı uygulamalar")
+        }
 
         Text(
             text = "Tema",
